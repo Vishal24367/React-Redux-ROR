@@ -48,12 +48,20 @@ class UsersController < ApplicationController
     end
 
     def create
-        create_user = User.new(firstName: params[:firstName], lastName: params[:lastName], phoneNumber: params[:phoneNumber], email: params[:email], referredCodeKey: params[:referredCodeKey], agreeToPrivacyPolicy: params[:agreeToPrivacyPolicy], token: SecureRandom.alphanumeric, source: params[:source] )
-        if create_user.save
-            render json: {isUserCreated: true, errors: []}, status: :ok
+        referralCode = Referral.find_by(code: params[:referredCodeKey]) rescue false
+        if referralCode.present? || params[:referredCodeKey].empty?
+            create_user = User.new(firstName: params[:firstName], lastName: params[:lastName], phoneNumber: params[:phoneNumber], email: params[:email], referredCodeKey: params[:referredCodeKey], agreeToPrivacyPolicy: params[:agreeToPrivacyPolicy], token: SecureRandom.alphanumeric, source: params[:source] )
+            if create_user.save
+                Referral.create!(user_id: create_user.id, code: SecureRandom.alphanumeric(7))
+                referralCode.update!(count: referralCode.count + 1 ) if referralCode.present?
+                render json: {isUserCreated: true, errors: []}, status: :ok
+            else
+                render json: {isUserCreated: false, errors: create_user.errors.full_messages}, status: 401
+            end
         else
-            render json: {isUserCreated: false, errors: create_user.errors.full_messages}, status: 401
+            render json: {isUserCreated: false, errors: ["Invalid Referral Code applied."]}, status: 401
         end
+
     end
 
     def resend_otp
