@@ -10,4 +10,6 @@ Rails.application.routes.draw do
   post '/users/email/verify' => 'users#verify_email'
   put '/users/token/resendtoken' => 'users#resend_email_token'
   put '/users/otp/resend' => 'users#resend_otp'
+  get '/users/my_referral' => 'referrals#show'
+  put '/users/referral/' => 'referrals#referral_code_user'
 end
