@@ -1,0 +1,22 @@
+# copy this file to database.yml in the same folder and modify the details if necessary
+default: &default
+  host: localhost
+  adapter: postgresql
+  encoding: unicode
+  pool: 5
+  username: basis_role
+  password: basis_password
+development:
+  <<: *default
+  database: basis_development
+# Warning: The database defined as "test" will be erased and
+# re-generated from your development database when you run "rake".
+# Do not set this db to the same as development or production.
+test: &test
+  <<: *default
+  database: app_test
+production:
+  <<: *default
+  database: app_production
+cucumber:
+  <<: *test
