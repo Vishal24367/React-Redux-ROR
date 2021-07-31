@@ -206,6 +206,8 @@ GEM
     pundit (2.1.0)
       activesupport (>= 3.0.0)
     rack (2.2.3)
+    rack-cors (1.1.1)
+      rack (>= 2.0.0)
     rack-proxy (0.6.5)
       rack
     rack-test (1.1.0)
@@ -349,6 +351,7 @@ DEPENDENCIES
   pg
   puma (~> 4.1)
   pundit
+  rack-cors
   rails (= 5.2.3)
   redis (~> 4.0)
   remotipart

@@ -1,31 +1,29 @@
 class UsersController < ApplicationController
     before_action :verify_authenticity_token, :only => [:no_method]
+    before_action :validate_user, :only => [:phone_number_verify]
     before_action :validate_token, :check_user_otp_validation, :check_user_email_validation, :only => [:verify_otp, :email_verification, :verify_email, :resend_otp, :resend_email_token]
 
     def no_method
     end
 
     def phone_number_verify
-        login_user = User.find_by(phoneNumber: params[:phoneNumber])
-        if login_user.present?
-            render json:{ isLogin: true, token: login_user.token }, status: :ok
-        else
-            render json:{ isLogin: false, token: nil }, status: 401
-        end
+        
     end
 
     def verify_otp
         if @user.present?
-            otpVerificationCode = params[:verificationCode]
+            data = params[:data]
+            otpVerificationCode = data[:verificationCode]
             if otpVerificationCode.to_i == 1111
                 @user.update!(wrongOTPCount: 0)
-                render json: { isVerification: true, errors: [] }, status: :ok
+                
+                render json: { isVerification: true, errors: [], isSuccessfulSignIn: @user.successfulSignIn }, status: :ok
             else
                 @user.update!(wrongOTPCount: @user.wrongOTPCount + 1)
-                render json: { isVerification: false, errors: ["Invalid OTP. After 3 unsuccessful attempts, your account will be blocked for 24 hours. Only #{3-@user.wrongOTPCount} are left."] }, status: 401
+                render json: { isVerification: false, errors: ["Invalid OTP. After 3 unsuccessful attempts, your account will be blocked for 24 hours. Only #{3-@user.wrongOTPCount} are left."] }, status: 400
             end
         else
-            render json: { isVerification: false, errors: ["No User Found"] }, status: 401
+            render json: { isVerification: false, errors: ["No User Found"] }, status: 400
         end
     end
 
@@ -56,10 +54,10 @@ class UsersController < ApplicationController
                 referralCode.update!(count: referralCode.count + 1 ) if referralCode.present?
                 render json: {isUserCreated: true, errors: []}, status: :ok
             else
-                render json: {isUserCreated: false, errors: create_user.errors.full_messages}, status: 401
+                render json: {isUserCreated: false, errors: create_user.errors.full_messages}, status: 400
             end
         else
-            render json: {isUserCreated: false, errors: ["Invalid Referral Code applied."]}, status: 401
+            render json: {isUserCreated: false, errors: ["Invalid Referral Code applied."]}, status: 400
         end
 
     end
@@ -83,15 +81,27 @@ class UsersController < ApplicationController
     end
 
     private
+        def validate_user
+            @login_user = User.find_by(phoneNumber: params[:phoneNumber])
+            if @login_user.present? && @login_user.wrongOTPCount < 2 
+                render json:{ isLogin: true, token: @login_user.token, errors: [] }, status: :ok
+            elsif @login_user.present? && @login_user.wrongOTPCount > 2
+                render json: {accountBlock: true, errors: ["Your account is currently blocked due to wrong OTP attempts."]}, status: 400
+            else
+                render json:{ isLogin: false, token: nil, errors: ["User not registered || Invalid Phone Number."] }, status: 400
+            end
+        end
+
         def validate_token
-            token = params[:token]
-            phoneNumber = params[:phoneNumber]
-            email = params[:email]
+            data = params[:data]
+            token = data[:token]
+            phoneNumber = data[:phoneNumber].to_s
+            email = data[:email]
             @user = User.find_by(token: token) rescue false
             if !@user.present?
                 render json: {isEmailVerification: false, message: "", errors: ["Invalid User"]}, status: 401
             elsif (email.present? && @user.email != email) || (phoneNumber.present? && @user.phoneNumber != phoneNumber)
-                render json: {isEmailVerification: false, message: "", errors: ["Invalid Credentials."]}, status: 401
+                render json: {isEmailVerification: false, message: "", errors: ["Invalid Credentials."]}, status: 400
             else
                 @user
             end
@@ -99,7 +109,7 @@ class UsersController < ApplicationController
 
         def check_user_otp_validation
             if @user.present? && @user.wrongOTPCount > 2 
-                render json: {accountBlock: true, errors: ["Your account is currently blocked due to wrong OTP attempts."]}, status: 401
+                render json: {accountBlock: true, errors: ["Your account is currently blocked due to wrong OTP attempts."]}, status: 400
             end
         end
 
@@ -111,13 +121,14 @@ class UsersController < ApplicationController
 
         def email_verified
             if @user.present?
-                if @user.email == params[:email]
+                data = params[:data]
+                if @user.email == data[:email]
                     render json:{ isEmailVerification: true, message: "An Email Verification OTP has been sent at your mail id.", errors: [] }, status: 200
                 else
-                    render json:{ isEmailVerification: false, message: "", errors:["Invalid Email Credentials."] }, status: 401
+                    render json:{ isEmailVerification: false, message: "", errors:["Invalid Email Credentials."] }, status: 400
                 end
             else
-                render json:{ isEmailVerification: false, message: "", errors: ["No User Found"] }, status: 401
+                render json:{ isEmailVerification: false, message: "", errors: ["No User Found"] }, status: 400
             end
         end
 end
